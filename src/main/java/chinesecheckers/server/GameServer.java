@@ -11,10 +11,12 @@ public class GameServer {
     private final List<Integer> standings = new ArrayList<>();
     private int currentPlayerIndex = 0;
     private int maxPlayers;
+
     
 
     public GameServer(int port) {
         this.port = port;
+;
     }
 
     public void start() {
@@ -28,10 +30,10 @@ public class GameServer {
     }
 
     private void initializeGame(ServerSocket serverSocket) throws IOException {
-        Scanner scanner = new Scanner(System.in);
-        System.out.println("Podaj liczbę graczy (2, 3, 4, 6): ");
-        maxPlayers = scanner.nextInt();
-
+        try (Scanner scanner = new Scanner(System.in)) {
+            System.out.println("Podaj liczbę graczy (2, 3, 4, 6): ");
+            maxPlayers = scanner.nextInt();
+        }
         System.out.println("Oczekiwanie na graczy...");
         for (int i = 0; i < maxPlayers; i++) {
             Socket clientSocket = serverSocket.accept();
@@ -108,7 +110,7 @@ public class GameServer {
         currentPlayerIndex = (currentPlayerIndex + 1) % maxPlayers;
     }
 
-    private void broadcastMessage(String message) {
+    public void broadcastMessage(String message) {
         for (ClientHandler player : players) {
             player.sendMessage(message);
         }
