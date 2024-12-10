@@ -24,6 +24,8 @@ public class GameServer {
             System.out.println("Serwer uruchomiony na porcie: " + port);
             initializeGame(serverSocket);
             startGame();
+        } catch (BindException e) {
+            System.out.println("Serwer już działa na porcie: " + port);
         } catch (IOException e) {
             e.printStackTrace();
         }

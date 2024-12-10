@@ -57,15 +57,7 @@ public class GameClient {
     }
     public void stopConnection() {
         try {
-            if (board != null) {
-                board = null;
-            }
-            if (gameServer != null) {
-                gameServer = null;
-            }
             System.out.println("Gra została zakończona");
-           
-
         } catch (Exception e) {
             System.out.println("Błąd podczas zamykania połączenia: " + e.getMessage());
         } finally {
