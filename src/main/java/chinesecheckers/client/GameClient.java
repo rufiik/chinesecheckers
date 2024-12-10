@@ -54,7 +54,6 @@ public class GameClient {
                 }
                 }
             }
-
         } catch (IOException e) {
             System.out.println("Niepołączono z serwerem! Sprawdź, czy serwer jest uruchomiony i spróbuj ponownie.");
             System.exit(1); 

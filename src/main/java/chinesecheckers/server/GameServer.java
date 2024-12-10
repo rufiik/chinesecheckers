@@ -11,6 +11,7 @@ public class GameServer {
     private final List<Integer> standings = new ArrayList<>();
     private int currentPlayerIndex = 0;
     private int maxPlayers;
+    private int nextPlayerId = 1;
     private final Board board;
 
     public GameServer(int port) {
@@ -44,14 +45,22 @@ public class GameServer {
                 }
             }
         }
-
+    
         System.out.println("Oczekiwanie na graczy...");
-        for (int i = 0; i < maxPlayers; i++) {
+        while (players.size() < maxPlayers) {
             Socket clientSocket = serverSocket.accept();
-            ClientHandler player = new ClientHandler(clientSocket, i+1);
-            players.add(player);
-            playerOrder.add(i+1);
-            System.out.println("Gracz " + (i + 1) + " dołączył do gry.");
+            ClientHandler player = new ClientHandler(clientSocket, nextPlayerId++);
+            if (player.isConnected()) {
+                players.add(player);
+                System.out.println("Gracz " + player.getPlayerId() + " dołączył do gry.");
+            } else {
+                System.out.println("Gracz " + player.getPlayerId() + " rozłączył się przed dołączeniem do gry.");
+            }
+            removeDisconnectedPlayersBeforeStart();
+        }
+
+        for (ClientHandler player : players) {
+            playerOrder.add(player.getPlayerId());
         }
         System.out.println("Wszyscy gracze dołączyli. Losowanie kolejności...");
         Collections.shuffle(playerOrder);
@@ -60,7 +69,16 @@ public class GameServer {
             player.sendMessage("Kolejność gry: " + playerOrder.toString());
         }
     }
-
+    private void removeDisconnectedPlayersBeforeStart() {
+        Iterator<ClientHandler> iterator = players.iterator();
+        while (iterator.hasNext()) {
+            ClientHandler player = iterator.next();
+            if (!player.isConnected()) {
+                System.out.println("Gracz " + player.getPlayerId() + " rozłączył się.");
+                iterator.remove();
+            }
+        }
+    }
     private void startGame() {
         while ((standings.size() + disconnectedPlayers.size()) < maxPlayers) {
             processTurn();
@@ -129,6 +147,7 @@ public class GameServer {
             }
         }
     }
+
 
     public void broadcastMessage(String message) {
         for (ClientHandler player : players) {
