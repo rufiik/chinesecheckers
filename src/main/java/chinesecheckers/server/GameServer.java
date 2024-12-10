@@ -7,16 +7,13 @@ public class GameServer {
     private final int port;
     private final List<ClientHandler> players = new ArrayList<>();
     private final List<Integer> playerOrder = new ArrayList<>();
-    private final Set<Integer> finishedPlayers = new HashSet<>();
+    private final Set<Integer> disconnectedPlayers = new HashSet<>();
     private final List<Integer> standings = new ArrayList<>();
     private int currentPlayerIndex = 0;
     private int maxPlayers;
 
-    
-
     public GameServer(int port) {
         this.port = port;
-;
     }
 
     public void start() {
@@ -33,31 +30,37 @@ public class GameServer {
 
     private void initializeGame(ServerSocket serverSocket) throws IOException {
         try (Scanner scanner = new Scanner(System.in)) {
-            System.out.println("Podaj liczbę graczy (2, 3, 4, 6): ");
-            maxPlayers = scanner.nextInt();
+            int inputPlayers;
+            while (true) {
+                System.out.println("Podaj liczbę graczy (2, 3, 4, 6): ");
+                inputPlayers = scanner.nextInt();
+                if (inputPlayers == 2 || inputPlayers == 3 || inputPlayers == 4 || inputPlayers == 6) {
+                    maxPlayers = inputPlayers;
+                    break;
+                } else {
+                    System.out.println("Niepoprawna liczba graczy! Wybierz 2, 3, 4 lub 6.");
+                }
+            }
         }
+
         System.out.println("Oczekiwanie na graczy...");
         for (int i = 0; i < maxPlayers; i++) {
             Socket clientSocket = serverSocket.accept();
             ClientHandler player = new ClientHandler(clientSocket, i+1);
             players.add(player);
-            playerOrder.add(i);
+            playerOrder.add(i+1);
             System.out.println("Gracz " + (i + 1) + " dołączył do gry.");
         }
         System.out.println("Wszyscy gracze dołączyli. Losowanie kolejności...");
         Collections.shuffle(playerOrder);
         
-        for (int i = 0; i < players.size(); i++) {
-            List<Integer> displayOrder = new ArrayList<>();
-            for (int order : playerOrder) {
-                displayOrder.add(order + 1);
-            }
-            players.get(i).sendMessage("Kolejność gry: " + displayOrder.toString());
+        for (ClientHandler player : players) {
+            player.sendMessage("Kolejność gry: " + playerOrder.toString());
         }
     }
 
     private void startGame() {
-        while (standings.size() < maxPlayers) {
+        while ((standings.size() + disconnectedPlayers.size()) < maxPlayers) {
             processTurn();
         }
         System.out.println("Gra zakończona!");
@@ -67,49 +70,55 @@ public class GameServer {
 
     private void processTurn() {
         int playerId = playerOrder.get(currentPlayerIndex);
-        ClientHandler currentPlayer = players.get(playerId);
+        ClientHandler currentPlayer = null;
 
-        if (standings.contains(playerId)) {
+        for (ClientHandler player : players) {
+            if (player.getPlayerId() == playerId) {
+                currentPlayer = player;
+                break;
+            }
+        }
+
+        if (standings.contains(playerId) || disconnectedPlayers.contains(playerId)) {
             currentPlayerIndex = (currentPlayerIndex + 1) % maxPlayers;
             return;
         }
 
-        if (!currentPlayer.isConnected()) {
-            System.out.println("Gracz " + (playerId + 1) + " rozłączył się.");
-            finishedPlayers.add(playerId);
-            standings.add(playerId);
-            broadcastMessage("Gracz " + (playerId + 1) + " rozłączył się.");
-            currentPlayerIndex = (currentPlayerIndex + 1) % maxPlayers;
+        if (currentPlayer == null || !currentPlayer.isConnected()) {
+            System.out.println("Gracz " + playerId + " rozłączył się.");
+            broadcastMessage("Gracz " + playerId + " rozłączył się.");
+            disconnectedPlayers.add(playerId);
+            currentPlayerIndex = (currentPlayerIndex + 1) % playerOrder.size();
             return;
         }
 
         currentPlayer.sendMessage("Twoja tura!");
-        broadcastMessage("Gracz " + (playerId + 1) + " wykonuje ruch.", playerId);
+        broadcastMessage("Gracz " + playerId + " wykonuje ruch.", playerId);
 
         String move = currentPlayer.receiveMessage();
         if (move == null) {
-            System.out.println("Gracz " + (playerId + 1) + " rozłączył się w trakcie swojej tury.");
-            broadcastMessage("Gracz " + (playerId + 1) + " rozłączył się w trakcie swojej tury!");
-            finishedPlayers.add(playerId);
+            System.out.println("Gracz " + playerId + " rozłączył się w trakcie swojej tury.");
+            broadcastMessage("Gracz " + playerId + " rozłączył się w trakcie swojej tury!");
+            disconnectedPlayers.add(playerId);
         } else if (move.equalsIgnoreCase("WYGRANA")) {
             standings.add(playerId);
-            broadcastMessage("Gracz " + (playerId + 1) + " zajął miejsce " + standings.size() + "!");
-            
-            if (standings.size() == maxPlayers - 1) {
-                for (int id : playerOrder) {
-                    if (!standings.contains(id)) {
-                        standings.add(id);
-                        broadcastMessage("Gracz " + (id + 1) + " zajął miejsce " + standings.size() + "!");
-                        break;
-                    }
-                }
-            }
+            broadcastMessage("Gracz " + playerId + " zajął miejsce " + standings.size() + "!");
         } else {
-            System.out.println("Gracz " + (playerId + 1) + " wykonał ruch: " + move);
-            broadcastMessage("Gracz " + (playerId + 1) + " wykonał ruch: " + move, playerId);
+            System.out.println("Gracz " + playerId + " wykonał ruch: " + move);
+            broadcastMessage("Gracz " + playerId + " wykonał ruch: " + move, playerId);
         }
 
         currentPlayerIndex = (currentPlayerIndex + 1) % maxPlayers;
+
+        if ((standings.size() + disconnectedPlayers.size()) == maxPlayers - 1) {
+            for (int id : playerOrder) {
+                if (!standings.contains(id)) {
+                    standings.add(id);
+                    broadcastMessage("Gracz " + id + " zajął miejsce " + standings.size() + "!");
+                    break;
+                }
+            }
+        }
     }
 
     public void broadcastMessage(String message) {
@@ -119,9 +128,9 @@ public class GameServer {
     }
 
     private void broadcastMessage(String message, int excludePlayerId) {
-        for (int i = 0; i < players.size(); i++) {
-            if (i != excludePlayerId) {
-                players.get(i).sendMessage(message);
+        for (ClientHandler player : players) {
+            if (player.getPlayerId() != excludePlayerId) {
+                player.sendMessage(message);
             }
         }
     }
@@ -136,12 +145,15 @@ public class GameServer {
 
     private void displayStandings() {
         System.out.println("Kolejność końcowa:");
-        for (int i = 0; i < standings.size(); i++) {
-            System.out.println((i + 1) + ". Gracz " + (standings.get(i) + 1));
-        }
         broadcastMessage("Gra zakończona! Kolejność końcowa: ");
         for (int i = 0; i < standings.size(); i++) {
-            broadcastMessage((i + 1) + ". miejsce: Gracz " + (standings.get(i) + 1));
+            int playerId = standings.get(i);
+            System.out.println((i + 1) + ". miejsce: Gracz " + playerId);
+            broadcastMessage((i + 1) + ". miejsce: Gracz " + playerId);
+        }
+        for (int playerId : disconnectedPlayers) {
+            System.out.println("Gracz " + playerId + " rozłączył się przed zakończeniem gry");
+            broadcastMessage("Gracz " + playerId + " rozłączył się przed zakończeniem gry");
         }
     }
 

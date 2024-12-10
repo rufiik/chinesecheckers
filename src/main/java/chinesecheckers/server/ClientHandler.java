@@ -6,11 +6,13 @@ public class ClientHandler {
     private final Socket socket;
     private final PrintWriter out;
     private final BufferedReader in;
+    private final int playerId;
 
     public ClientHandler(Socket socket, int playerId) throws IOException {
         this.socket = socket;
         this.out = new PrintWriter(socket.getOutputStream(), true);
         this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        this.playerId = playerId;
         sendMessage("Witaj, Graczu " + playerId + "!");
     }
 
@@ -50,5 +52,9 @@ public class ClientHandler {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public int getPlayerId() {
+        return playerId;
     }
 }
