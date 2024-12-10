@@ -1,13 +1,10 @@
-package chinesecheckers.client;
-
-import chinesecheckers.server.GameServer;
+package chinesecheckers.server;
 
 public class Board {
     private int[][] board;
     private static final int BOARD_SIZE = 13;
-    private GameServer gameServer;
-    public Board(GameServer gameServer) {
-        this.gameServer = gameServer;
+
+    public Board() {
         board = new int[BOARD_SIZE][BOARD_SIZE];
         initializeBoard();
     }
@@ -20,8 +17,15 @@ public class Board {
         }
     }
 
-    public void updateBoard(String move) {
-        System.out.println("Twój ruch " + move);
-        gameServer.broadcastMessage("Aktualizacja planszy: " + move);
+    public synchronized String processMove(String move, int playerId) {
+        if (isValidMove(move)) {
+            return "Ruch wykonany: " + move;
+        } else {
+            return "Nieprawidłowy ruch: " + move;
+        }
+    }
+
+    private boolean isValidMove(String move) {
+        return true;
     }
 }

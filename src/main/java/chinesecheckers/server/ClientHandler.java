@@ -17,16 +17,19 @@ public class ClientHandler {
     }
 
     public void sendMessage(String message) {
-        out.println(message);
+            out.println(message);
     }
 
     public String receiveMessage() {
         try {
-            return in.readLine();
+            String message = in.readLine();
+            if (message != null && !message.isEmpty()) {
+                return message;
+            }
         } catch (IOException e) {
-            e.printStackTrace();
-            return null;
+            System.out.println("Błąd podczas odbierania wiadomości: " + e.getMessage());
         }
+        return null;
     }
 
     public boolean isConnected() {

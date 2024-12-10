@@ -3,24 +3,19 @@ import java.io.*;
 import java.net.*;
 import java.util.Scanner;
 
-import chinesecheckers.server.GameServer;
-
 public class GameClient {
     private final String host;
     private final int port;
-    private Board board;
-    private GameServer gameServer;
+
     public GameClient(String host, int port) {
         this.host = host;
         this.port = port;
-        this.gameServer = new GameServer(port);
-        this.board = new Board(gameServer);
     }
 
     public void start() {
         try (Socket socket = new Socket(host, port);
-             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-             PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
 
             try (Scanner scanner = new Scanner(System.in)) {
                 System.out.println("Połączono z serwerem!");
@@ -34,7 +29,7 @@ public class GameClient {
                             }
                             
                         }
-                    }catch (IOException e) {
+                    } catch (IOException e) {
                         System.out.println("Połączenie z serwerem zostało przerwane: " + e.getMessage());
                     } finally {
                         stopConnection();
@@ -44,9 +39,6 @@ public class GameClient {
                 while (true) {
                     String move = scanner.nextLine();
                     out.println(move);
-                    synchronized (System.out) {
-                        board.updateBoard(move);
-                    }
                 }
             }
 

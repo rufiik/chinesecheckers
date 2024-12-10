@@ -11,9 +11,11 @@ public class GameServer {
     private final List<Integer> standings = new ArrayList<>();
     private int currentPlayerIndex = 0;
     private int maxPlayers;
+    private final Board board;
 
     public GameServer(int port) {
         this.port = port;
+        this.board = new Board();
     }
 
     public void start() {
@@ -91,7 +93,7 @@ public class GameServer {
             currentPlayerIndex = (currentPlayerIndex + 1) % playerOrder.size();
             return;
         }
-
+        
         currentPlayer.sendMessage("Twoja tura!");
         broadcastMessage("Gracz " + playerId + " wykonuje ruch.", playerId);
 
@@ -104,8 +106,15 @@ public class GameServer {
             standings.add(playerId);
             broadcastMessage("Gracz " + playerId + " zajął miejsce " + standings.size() + "!");
         } else {
-            System.out.println("Gracz " + playerId + " wykonał ruch: " + move);
-            broadcastMessage("Gracz " + playerId + " wykonał ruch: " + move, playerId);
+            String result = board.processMove(move, playerId);
+            currentPlayer.sendMessage(result);
+    
+            if (result.startsWith("Ruch wykonany")) {
+                System.out.println("Gracz " + playerId + " wykonał ruch: " + move);
+                broadcastMessage("Gracz " + playerId + " wykonał ruch: " + move, playerId);
+            } else {
+                currentPlayer.sendMessage("Spróbuj ponownie.");
+            }
         }
 
         currentPlayerIndex = (currentPlayerIndex + 1) % maxPlayers;
