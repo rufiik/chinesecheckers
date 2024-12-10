@@ -6,7 +6,8 @@ import java.util.Scanner;
 public class GameClient {
     private final String host;
     private final int port;
-
+    private boolean isPlayerTurn = false;
+    private boolean isConnected = true;
     public GameClient(String host, int port) {
         this.host = host;
         this.port = port;
@@ -25,20 +26,32 @@ public class GameClient {
                         String serverMessage;
                         while ((serverMessage = in.readLine()) != null) {
                             synchronized (System.out) {
-                                System.out.println("Serwer: " + serverMessage);
+                                if (serverMessage.equals("Twoja tura!")) {
+                                    System.out.println(serverMessage);
+                                    isPlayerTurn = true;
+                                } else {
+                                    System.out.println(serverMessage);
+                                }
                             }
                             
                         }
                     } catch (IOException e) {
                         System.out.println("Połączenie z serwerem zostało przerwane: " + e.getMessage());
                     } finally {
+                        isConnected = false;
                         stopConnection();
                     }
                 }).start();
 
-                while (true) {
-                    String move = scanner.nextLine();
-                    out.println(move);
+                while (isConnected) {
+                    synchronized (System.out) {
+                    if (isPlayerTurn) {
+                        clearInputBuffer();
+                        String move = scanner.nextLine();
+                        out.println(move);
+                        isPlayerTurn = false; 
+                    }
+                }
                 }
             }
 
@@ -46,6 +59,15 @@ public class GameClient {
             System.out.println("Niepołączono z serwerem! Sprawdź, czy serwer jest uruchomiony i spróbuj ponownie.");
             System.exit(1); 
     }
+    } 
+    private void clearInputBuffer() {
+        try {
+            while (System.in.available() > 0) {
+                System.in.read(); 
+            }
+        } catch (IOException e) {
+            System.out.println("Błąd podczas czyszczenia bufora wejściowego: " + e.getMessage());
+        }
     }
     public void stopConnection() {
         try {
