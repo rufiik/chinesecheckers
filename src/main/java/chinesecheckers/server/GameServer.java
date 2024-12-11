@@ -4,6 +4,7 @@ import java.net.*;
 import java.util.*;
 
 public class GameServer {
+    private static GameServer instance;    
     private final int port;
     private final List<ClientHandler> players = new ArrayList<>();
     private final List<Integer> playerOrder = new ArrayList<>();
@@ -14,57 +15,70 @@ public class GameServer {
     private int nextPlayerId = 1;
     private final Board board;
     private boolean gameStarted = false;
+    private volatile boolean isServerRunning = true;
     
-        public GameServer(int port) {
-            this.port = port;
-            this.board = new Board();
+    private GameServer(int port) {
+        this.port = port;
+        this.board = new Board();
+    }
+
+    public static synchronized GameServer getInstance(int port) {
+        if (instance == null) {
+            instance = new GameServer(port);
         }
+        return instance;
+    }
     
-        public void start() {
-            try (ServerSocket serverSocket = new ServerSocket(port)) {
-                System.out.println("Serwer uruchomiony na porcie: " + port);
-                initializeGame(serverSocket);
-                startGame(serverSocket);
-            } catch (BindException e) {
-                System.out.println("Serwer już działa na porcie: " + port);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+    public void start() {
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("Serwer uruchomiony na porcie: " + port);
+            initializeGame(serverSocket);
+            startGame(serverSocket);
+        } catch (BindException e) {
+            System.out.println("Serwer już działa na porcie: " + port);
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            isServerRunning = false;
+            broadcastMessage("Serwer został zamknięty.");
+            cleanupDisconnectedPlayers();
         }
+    }
     
-        private void initializeGame(ServerSocket serverSocket) throws IOException {
-            try (Scanner scanner = new Scanner(System.in)) {
-                int inputPlayers;
-                while (true) {
-                    System.out.println("Podaj liczbę graczy (2, 3, 4, 6): ");
-                    inputPlayers = scanner.nextInt();
-                    if (inputPlayers == 2 || inputPlayers == 3 || inputPlayers == 4 || inputPlayers == 6) {
-                        maxPlayers = inputPlayers;
-                        break;
-                    } else {
-                        System.out.println("Niepoprawna liczba graczy! Wybierz 2, 3, 4 lub 6.");
-                    }
+    private void initializeGame(ServerSocket serverSocket) throws IOException {
+        try (Scanner scanner = new Scanner(System.in)) {
+            int inputPlayers;
+            while (true) {
+                System.out.println("Podaj liczbę graczy (2, 3, 4, 6): ");
+                inputPlayers = scanner.nextInt();
+                if (inputPlayers == 2 || inputPlayers == 3 || inputPlayers == 4 || inputPlayers == 6) {
+                    maxPlayers = inputPlayers;
+                    break;
+                } else {
+                    System.out.println("Niepoprawna liczba graczy! Wybierz 2, 3, 4 lub 6.");
                 }
             }
+        }
         
-            System.out.println("Oczekiwanie na graczy...");
-            while (players.size() < maxPlayers) {
-                Socket clientSocket = serverSocket.accept();
-                handleNewConnections(clientSocket);
-            }
+        System.out.println("Oczekiwanie na graczy...");
+        while (players.size() < maxPlayers) {
+            Socket clientSocket = serverSocket.accept();
+            handleNewConnections(clientSocket);
+        }
     
-            for (ClientHandler player : players) {
-                playerOrder.add(player.getPlayerId());
-            }
-            System.out.println("Wszyscy gracze dołączyli. Losowanie kolejności...");
-            Collections.shuffle(playerOrder);
+        for (ClientHandler player : players) {
+            playerOrder.add(player.getPlayerId());
+        }
+        System.out.println("Wszyscy gracze dołączyli. Losowanie kolejności...");
+        Collections.shuffle(playerOrder);
             
-            for (ClientHandler player : players) {
-                player.sendMessage("Kolejność gry: " + playerOrder.toString());
-            }
+        for (ClientHandler player : players) {
+            player.sendMessage("Kolejność gry: " + playerOrder.toString());
+        }
     
-            gameStarted = true;
+        gameStarted = true;
     }
+
     private void removeDisconnectedPlayersBeforeStart() {
         Iterator<ClientHandler> iterator = players.iterator();
         while (iterator.hasNext()) {
@@ -76,7 +90,7 @@ public class GameServer {
         }
     }
     private void startGame(ServerSocket serverSocket) throws IOException {
-        while ((standings.size() + disconnectedPlayers.size()) < maxPlayers) {
+        while (((standings.size() + disconnectedPlayers.size()) < maxPlayers) && isServerRunning) {
             Socket clientSocket = serverSocket.accept();
             handleNewConnections(clientSocket);
             processTurn();

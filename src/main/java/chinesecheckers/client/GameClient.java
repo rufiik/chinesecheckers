@@ -26,7 +26,11 @@ public class GameClient {
                         String serverMessage;
                         while ((serverMessage = in.readLine()) != null) {
                             synchronized (System.out) {
-                                if (serverMessage.equals("Twoja tura!")) {
+                                if (serverMessage.equals("Serwer został zamknięty.")) {
+                                    System.out.println(serverMessage);
+                                    stopConnection();
+                                    break;
+                                } else if (serverMessage.equals("Twoja tura!")) {
                                     System.out.println(serverMessage);
                                     isPlayerTurn = true;
                                 } else if (serverMessage.equals("Gra już się rozpoczęła.")) {
