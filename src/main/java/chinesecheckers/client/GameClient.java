@@ -29,6 +29,9 @@ public class GameClient {
                                 if (serverMessage.equals("Twoja tura!")) {
                                     System.out.println(serverMessage);
                                     isPlayerTurn = true;
+                                } else if (serverMessage.equals("Gra już się rozpoczęła.")) {
+                                    closeConnection();
+                                    break;
                                 } else {
                                     System.out.println(serverMessage);
                                 }
@@ -45,20 +48,21 @@ public class GameClient {
 
                 while (isConnected) {
                     synchronized (System.out) {
-                    if (isPlayerTurn) {
-                        clearInputBuffer();
-                        String move = scanner.nextLine();
-                        out.println(move);
-                        isPlayerTurn = false; 
+                        if (isPlayerTurn) {
+                            clearInputBuffer();
+                            String move = scanner.nextLine();
+                            out.println(move);
+                            isPlayerTurn = false; 
+                        }
                     }
-                }
                 }
             }
         } catch (IOException e) {
             System.out.println("Niepołączono z serwerem! Sprawdź, czy serwer jest uruchomiony i spróbuj ponownie.");
             System.exit(1); 
+        }
     }
-    } 
+
     private void clearInputBuffer() {
         try {
             while (System.in.available() > 0) {
@@ -68,9 +72,20 @@ public class GameClient {
             System.out.println("Błąd podczas czyszczenia bufora wejściowego: " + e.getMessage());
         }
     }
+
     public void stopConnection() {
         try {
-            System.out.println("Gra została zakończona");
+            System.out.println("Rozłączono z serwerem.");
+        } catch (Exception e) {
+            System.out.println("Błąd podczas zamykania połączenia: " + e.getMessage());
+        } finally {
+            System.exit(0); 
+        }
+    }
+
+    public void closeConnection() {
+        try {
+            System.out.println("Gra już się rozpoczęła.");
         } catch (Exception e) {
             System.out.println("Błąd podczas zamykania połączenia: " + e.getMessage());
         } finally {
