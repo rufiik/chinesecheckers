@@ -2,7 +2,9 @@ package chinesecheckers.server;
 import java.io.*;
 import java.net.*;
 
-public class ClientHandler {
+import chinesecheckers.patterns.Observer;
+
+public class ClientHandler implements Observer {
     private final Socket socket;
     private final PrintWriter out;
     private final BufferedReader in;
@@ -16,6 +18,11 @@ public class ClientHandler {
         sendMessage("Witaj, Graczu " + playerId + "!");
     }
 
+    @Override
+    public void update(String message) {
+        sendMessage(message);
+    }
+    
     public void sendMessage(String message) {
             out.println(message);
     }

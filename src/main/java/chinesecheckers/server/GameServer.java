@@ -3,19 +3,22 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
-public class GameServer {
+import chinesecheckers.patterns.Observable;
+import chinesecheckers.patterns.Observer;
+
+public class GameServer implements Observable{
     private static GameServer instance;    
     private final int port;
     private final List<ClientHandler> players = new ArrayList<>();
     private final List<Integer> playerOrder = new ArrayList<>();
     private final Set<Integer> disconnectedPlayers = new HashSet<>();
     private final List<Integer> standings = new ArrayList<>();
+    private final List<Observer> observers = new ArrayList<>();
     private int currentPlayerIndex = 0;
     private int maxPlayers;
     private int nextPlayerId = 1;
     private final Board board;
     private boolean gameStarted = false;
-    private volatile boolean isServerRunning = true;
     
     private GameServer(int port) {
         this.port = port;
@@ -38,10 +41,6 @@ public class GameServer {
             System.out.println("Serwer już działa na porcie: " + port);
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            isServerRunning = false;
-            broadcastMessage("Serwer został zamknięty.");
-            cleanupDisconnectedPlayers();
         }
     }
     
@@ -60,10 +59,17 @@ public class GameServer {
             }
         }
         
-        System.out.println("Oczekiwanie na graczy...");
-        while (players.size() < maxPlayers) {
-            Socket clientSocket = serverSocket.accept();
-            handleNewConnections(clientSocket);
+        System.out.println("Oczekiwanie na graczy..."); 
+        new Thread(() -> handleNewConnections(serverSocket)).start();
+        synchronized (players) {
+            while (players.size() < maxPlayers) {
+                try {
+                    players.wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.out.println("Waiting for players interrupted.");
+                }
+            }
         }
     
         for (ClientHandler player : players) {
@@ -90,14 +96,13 @@ public class GameServer {
         }
     }
     private void startGame(ServerSocket serverSocket) throws IOException {
-        while (((standings.size() + disconnectedPlayers.size()) < maxPlayers) && isServerRunning) {
-            Socket clientSocket = serverSocket.accept();
-            handleNewConnections(clientSocket);
+        while ((standings.size() + disconnectedPlayers.size()) < maxPlayers) {
             processTurn();
         }
         System.out.println("Gra zakończona!");
         cleanupDisconnectedPlayers();
         displayStandings();
+        System.exit(0);
     }
 
     private void processTurn() {
@@ -160,17 +165,32 @@ public class GameServer {
         }
     }
 
+    @Override
+    public void addObserver(Observer observer) {
+        observers.add(observer);
+    }
 
-    public void broadcastMessage(String message) {
-        for (ClientHandler player : players) {
-            player.sendMessage(message);
+    @Override
+    public void removeObserver(Observer observer) {
+        observers.remove(observer);
+    }
+
+    @Override
+    public void notifyObservers(String message) {
+        for (Observer observer : observers) {
+            observer.update(message);
         }
     }
 
+    public void broadcastMessage(String message) {
+        notifyObservers(message);
+    }
+
     private void broadcastMessage(String message, int excludePlayerId) {
-        for (ClientHandler player : players) {
-            if (player.getPlayerId() != excludePlayerId) {
-                player.sendMessage(message);
+        for (Observer observer : observers) {
+            if (observer instanceof ClientHandler && 
+                ((ClientHandler) observer).getPlayerId() != excludePlayerId) {
+                observer.update(message);
             }
         }
     }
@@ -197,21 +217,34 @@ public class GameServer {
         }
     }
 
-    private void handleNewConnections(Socket clientSocket) throws IOException {
-        if (gameStarted) {
-            try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
-                out.println("Gra już się rozpoczęła.");
-                return;
+    private void handleNewConnections(ServerSocket serverSocket) {
+        while (true) {
+            try {
+                Socket clientSocket = serverSocket.accept();
+                synchronized (players) {
+                    if (gameStarted) {
+                        try (PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
+                            out.println("Gra już się rozpoczęła.");
+                        } finally {
+                            clientSocket.close();
+                        }
+                    } else {
+                        ClientHandler player = new ClientHandler(clientSocket, nextPlayerId++);
+                        if (player.isConnected()) {
+                            players.add(player);
+                            addObserver(player);
+                            System.out.println("Gracz " + player.getPlayerId() + " dołączył do gry.");
+                            players.notifyAll();
+                        } else {
+                            System.out.println("Gracz " + player.getPlayerId() + " rozłączył się przed dołączeniem do gry.");
+                        }
+                        removeDisconnectedPlayersBeforeStart();
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
-        ClientHandler player = new ClientHandler(clientSocket, nextPlayerId++);
-        if (player.isConnected()) {
-            players.add(player);
-            System.out.println("Gracz " + player.getPlayerId() + " dołączył do gry.");
-        } else {
-            System.out.println("Gracz " + player.getPlayerId() + " rozłączył się przed dołączeniem do gry.");
-        }
-        removeDisconnectedPlayersBeforeStart();
     }
 
     public static void main(String[] args) {
