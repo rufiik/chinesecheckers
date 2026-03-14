@@ -1,43 +1,33 @@
-Chinese Checkers - Java Project
-Project Overview
+# Chinese Checkers - Java Project
 
-Chinese Checkers is a Java implementation of the classic board game, developed as part of a Software Engineering course. The project demonstrates object-oriented design principles, network communication, and software development best practices.
-Technologies Used
+## Project Overview
 
-    Java - Core programming language
+**Chinese Checkers** is a Java implementation of the classic board game, developed as part of a Software Engineering course. The project demonstrates object-oriented design principles, network communication, and software development best practices.
 
-    Maven - Build automation and dependency management
+## Technologies Used
 
-    JUnit - Unit testing framework
+- **Java** - Core programming language
+- **Maven** - Build automation and dependency management
+- **JUnit** - Unit testing framework
+- **JavaDoc** - Documentation generation
 
-    JavaDoc - Documentation generation
+## Features
 
-Features
+-  Fully playable Chinese Checkers game
+-  Client-server architecture
+-  Multiplayer support
+-  Object-oriented design following SOLID principles
+-  Comprehensive unit tests
+-  Auto-generated documentation
 
-    Fully playable Chinese Checkers game
+## Prerequisites
 
-    Client-server architecture
+- Java Development Kit (JDK) 8 or higher
+- Apache Maven
 
-    Multiplayer support
+## Build & Run Instructions
 
-    Object-oriented design following SOLID principles
-
-    Comprehensive unit tests
-
-    Auto-generated documentation
-
-Build & Run Instructions
-Prerequisites
-
-    Java Development Kit (JDK) 8 or higher
-
-    Apache Maven
-
-Compilation
-bash
-
-# Compile the entire project
-mvn clean compile
+### Compilation
 
 Running the Application
 
@@ -58,8 +48,52 @@ bash
 mvn javadoc:javadoc
 
 The documentation will be generated in target/site/apidocs/
-Run Tests
+Tests
 bash
 
-# Execute all unit tests
+# Run all unit tests
 mvn clean test
+
+Project Structure
+text
+
+chinesecheckers/
+├── src/
+│   ├── main/
+│   │   ├── java/           # Source code
+│   │   └── resources/       # Resources and configs
+│   └── test/
+│       └── java/            # Unit tests
+├── pom.xml                   # Maven configuration
+└── README.md                 # Project documentation
+
+Architecture
+
+The project follows a client-server architecture:
+
+    Server: Manages game state, player connections, and game logic
+
+    Client: Provides GUI and handles user interactions
+
+Key Implementation Aspects
+
+    Object-Oriented Design: Clean separation of concerns with dedicated classes for board, pieces, players, and game rules
+
+    Network Communication: Socket-based communication between clients and server
+
+    Concurrency: Multi-threaded server handling multiple clients simultaneously
+
+    Testing: Comprehensive unit tests ensuring code reliability
+
+    Documentation: Detailed JavaDoc documentation for all public APIs
+```bash
+# Compile the entire project
+mvn clean compile
+
+# Compile server and client:
+mvn exec:java -Pserver    # Start the server
+mvn exec:java -Pclient    # Start a client
+
+# Run tests:
+mvn clean test
+```
